@@ -1,0 +1,72 @@
+function sherdogCard(ad, type = 'links') {
+  // Start the timer
+  console.time("myFunction");
+  const url = ad;
+
+//  const url = 'https://www.sherdog.com/events/UFC-Fight-Night-229-Dawson-vs-Green-98053';
+  const res = UrlFetchApp.fetch(url, { muteHttpExceptions: true }).getContentText();
+  const $ = Cheerio.load(res);
+  
+  $('span[class="sub_line"]').remove();
+  $('table[class="fight_card_resume"]').remove();
+
+  var name = $('tr').find('a').toArray().map(x => $(x).attr('href')).map(item => item.trim()).map(item => item.toString());
+  var main = $('h3').find('a').toArray().map(x => $(x).attr('href')).map(item => item.trim()).map(item => item.toString());
+
+  //main = main.push(name);
+  name = name.map(i => 'https://www.sherdog.com' + i);
+  main = main.map(i => 'https://www.sherdog.com' + i);
+
+  main = main.concat(name);
+  
+  //Logger.log(main); 
+
+  let event = $('div[class="event_detail"] > div > h1').find('span').text().trim();
+  let event_date = $('div[class= "info"] > span').first().text().trim();
+  let location = $('div[class= "info"] > span :nth-child(2)').text().trim();
+  let organization = $('div[class= "organization"] > a > span').first().text().trim();
+
+  event_date = formatDate4(event_date);
+
+  let table = [];
+
+  table.push(['Organization', 'Date', 'Event', 'Location']);
+
+  table.push([organization, event_date, event, location]);
+  
+
+  if (type === 'links'){
+    Logger.log(main);
+    return main
+  } else if (type === 'details'){
+    Logger.log(table);
+    return table
+  }
+//  return [main, table];
+//  Logger.log(typeof main);
+  
+  var result = []
+
+  for (var i = 0; i < main.length; i++){
+    result = result.concat(sherdog(main[i]));
+    //Logger.log(sherdog(main[i]))
+  } 
+
+  var result = Array.from(new Set(result.map(JSON.stringify)), JSON.parse);
+
+//  Logger.log(result);
+
+  var newSheet = SpreadsheetApp.create('sherdog');
+
+  var range = newSheet.getActiveSheet().getRange(1,1,result.length,result[0].length);
+  range.setValues(result);
+
+  var lastColumn = newSheet.getActiveSheet().getLastColumn();
+  
+  for (var i = 1; i <= lastColumn; i++) {
+    newSheet.autoResizeColumn(i);
+  }
+
+  // Stop the timer
+  console.timeEnd("myFunction");
+}
